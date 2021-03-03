@@ -26,16 +26,17 @@ msftprice = msftprice.rename("Price")
 msftprice = msftprice * 2
 df = pd.concat([df, msftprice], axis=1)
 print(df)
-
+'''
 port = Portfolio("Testi")
 
-port.add_stock('KNEBV.HE', 30, "2019-5-1")
-port.add_stock('NOKIA.HE', 30, "2019-1-17")
-port.add_stock('KO', 1, "2021-1-9")
+port.add_stock('AAPL', 2, "2020-5-1")
+port.add_stock('MSFT', 3, "2021-03-03")
 port.pf_value()
 port.pf_returns()
 port.get_greeks()
 port.count_sharpe()
+pd.set_option('display.max_rows', port.pf.shape[0]+1)
+print(port.pf)
 print(port.alpha)
 print(port.beta)
 print(port.sharpe)
@@ -49,5 +50,5 @@ for i in range(len(o)):
         pof = o[i]
 pof.add_stock("KO", 50, "2021-1-9")
 print(pof.pf)
-
+'''
 

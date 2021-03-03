@@ -132,24 +132,27 @@ class Portfolio:
         return self.value
 
     def pf_returns(self):
-        # Creates a daily, monthly and annual return columns to the portfolio dataframe
+        # Creates a daily return column to the portfolio dataframe
         self.pf['Daily Return'] = self.pf['Value'].pct_change(1)
-        self.pf['Monthly Return'] = self.pf['Value'].pct_change(21)
-        self.pf['Annual Return'] = self.pf['Value'].pct_change(252)
 
     def get_greeks(self):
-        # Does a regression for beta and alpha, currently using only daily returns, so the program shows
-        # daily alpha but this can be modified in the future
+        # Does a regression for beta and alpha
         self.pf = self.pf.replace(np.inf, np.nan)
         df = self.pf.dropna()
+
+        # I turn my daily returns into monthly returns in order to get rid of daily noise
+        # in the regressions
         df['Market Ret_1'] = df['Daily Market Return'] + 1
         df['Daily Ret_1'] = df['Daily Return'] + 1
         df = df.reset_index()
         df['mdate'] = df['Date'].dt.to_period("M")
         reg_df = df[['mdate', 'Daily Ret_1', 'Market Ret_1']]
         pd.options.display.float_format = '{:,.10f}'.format
-
         reg_df = reg_df.groupby('mdate').cumprod()
+        reg_df = reg_df[reg_df['Daily Ret_1'] < 2]
+        reg_df = reg_df[reg_df['Daily Ret_1'] > 0.01]
+
+        # Then it is time to do the regressions
         x = reg_df['Market Ret_1']
         x = sm.add_constant(x)
         y = reg_df['Daily Ret_1']
