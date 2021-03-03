@@ -179,7 +179,6 @@ class Portfolio:
         today = datetime.now()
         last = self.pf.index[-1]
         difference = today - last
-        print(difference.days)
         if difference.days > 0:
             market = yf.Ticker('^GSPC')
             sp = market.history(start=last, end=today)['Close']
