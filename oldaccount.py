@@ -57,6 +57,10 @@ class Oldaccount(QWidget):
         open_file.close()
         if found:
             pf.uptodate()
+            pf.pf_value()
+            pf.pf_returns()
+            pf.get_greeks()
+            pf.count_sharpe()
             self.next_window = Infopage(pf)
             self.next_window.show()
             self.close()

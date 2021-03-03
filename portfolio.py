@@ -1,4 +1,5 @@
 import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn'
 import yfinance as yf
 from sklearn.linear_model import LinearRegression
 import statsmodels.api as sm
@@ -72,10 +73,13 @@ class Portfolio:
             pricehistory = stock.history(start = day, end = today)['Close']
             pricehistory = pricehistory * amount
             self.pf['Value'] = self.pf['Value'].fillna(0)
+            self.pf = self.pf.loc[self.pf.index.drop_duplicates()]
             self.pf = pd.concat([self.pf, pricehistory], axis = 1)
             self.pf['Close'] = self.pf['Close'].fillna(0)
             self.pf['Value'] = self.pf['Value'] + self.pf['Close']
+
             self.pf = self.pf.drop(columns='Close')
+        self.value = self.pf_value()
 
 
     def sell_stock(self, ticker, amount):
@@ -89,6 +93,7 @@ class Portfolio:
                 price = price * self.stocks[ticker]
                 self.pf['Value'].iloc[-1] -= price
                 self.stocks.pop(ticker)
+                self.value = self.pf_value()
                 return "Removed all shares of " + ticker + " from your portfolio."
             elif amount < self.stocks[ticker]:
                 pricehistory = stock.history(period='1d')
@@ -98,6 +103,7 @@ class Portfolio:
                 self.pf['Value'].iloc[-1] -= price
                 self.stocks[ticker] -= amount
                 ring = "Removed " + str(amount) + " shares of " + ticker + " from your portfolio."
+                self.value = self.pf_value()
                 return ring
         else:
             return "Did not find a stock with that ticker from your portfolio."
@@ -126,35 +132,40 @@ class Portfolio:
         return self.value
 
     def pf_returns(self):
-        # Creates a daily, monthly and annual return and excess return columns to the portfolio dataframe
+        # Creates a daily, monthly and annual return columns to the portfolio dataframe
         self.pf['Daily Return'] = self.pf['Value'].pct_change(1)
-        self.pf['Daily Excess'] = self.pf['Daily Return'] - self.pf['Daily Market Return']
         self.pf['Monthly Return'] = self.pf['Value'].pct_change(21)
         self.pf['Annual Return'] = self.pf['Value'].pct_change(252)
-        self.pf['Monthly Excess'] = self.pf['Monthly Return'] - self.pf['Monthly Market Return']
-        self.pf['Annual Excess'] = self.pf['Annual Return'] - self.pf['Annual Market Return']
 
     def get_greeks(self):
         # Does a regression for beta and alpha, currently using only daily returns, so the program shows
         # daily alpha but this can be modified in the future
         self.pf = self.pf.replace(np.inf, np.nan)
         df = self.pf.dropna()
-        y = df['Daily Market Return']
-        x = df['Daily Return']
-        #col_size = x.size * -1
-        #y = y.iloc[col_size:]
+        df['Market Ret_1'] = df['Daily Market Return'] + 1
+        df['Daily Ret_1'] = df['Daily Return'] + 1
+        df = df.reset_index()
+        df['mdate'] = df['Date'].dt.to_period("M")
+        reg_df = df[['mdate', 'Daily Ret_1', 'Market Ret_1']]
+        pd.options.display.float_format = '{:,.10f}'.format
+
+        reg_df = reg_df.groupby('mdate').cumprod()
+        x = reg_df['Market Ret_1']
         x = sm.add_constant(x)
+        y = reg_df['Daily Ret_1']
         mod = sm.OLS(y,x)
         res = mod.fit()
         greeks = res.params
-        self.alpha = round(greeks[0] * 100,5)
-        self.beta = round(greeks[1] * 100,3)
+        self.alpha = round(greeks[0],5)
+        self.beta = round(greeks[1], 3)
 
     def count_sharpe(self):
-        # Counts the sharpe ratio for the portfolio
-        vola = self.pf['Daily Excess'].std()
-        avg = self.pf['Daily Return'].mean()
-        self.sharpe = avg/vola
+        # Counts the sharpe ratio for the portfolio for the last year
+        # I am using the last 252 rows because there are 252 trading days in a year
+        df = self.pf.tail(252)
+        vola = df['Daily Return'].std()
+        avg = df['Daily Return'].mean()
+        self.sharpe = avg/vola * np.sqrt(252)
         self.sharpe = round(self.sharpe, 3)
 
 
@@ -163,11 +174,10 @@ class Portfolio:
         # has to be update for the days between the last portfolio update and the current day
         from datetime import timedelta
         today = datetime.now()
-        last = self.pf.index[-1] + timedelta(days=2)
+        last = self.pf.index[-1]
         difference = today - last
-        if difference.days < 3:
-            pass
-        else:
+        print(difference.days)
+        if difference.days > 0:
             market = yf.Ticker('^GSPC')
             sp = market.history(start=last, end=today)['Close']
             sp = sp.rename('Market')

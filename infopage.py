@@ -31,7 +31,7 @@ class Infopage(QWidget):
         p.setColor(self.backgroundRole(), Qt.darkCyan)  # darkcyan
         self.setPalette(p)
 
-        self.alphalabel = "Your portfolio's daily alpha is " + str(self.pf.alpha) + "%"
+        self.alphalabel = "Your portfolio's alpha is " + str(self.pf.alpha) + "%"
         label1 = QLabel(self.alphalabel, self)
         label1.move(70, 30)
 
@@ -88,6 +88,7 @@ class Infopage(QWidget):
         for i in range(len(o)):
             if o[i].id == self.pf.id:
                 o.remove(o[i])
+                break
         o.append(self.pf)
         open_file.close()
         with open("portfolios.pickle", 'wb') as output:
